@@ -101,6 +101,28 @@ Edit `.config/config.json` or set environment variables:
 | `CACHE_MAX_SIZE` | Max cached responses | `100` |
 | `CACHE_ENABLED` | Enable response caching | `true` |
 
+### Getting Session Tokens
+
+The `OASIS_TOKEN` and `OASIS_WEBID` are browser session values from [platform.stepfun.ai](https://platform.stepfun.ai). They are required for the dashboard to display live plan name, 5h/weekly usage %, and reset timers.
+
+1. Open [platform.stepfun.ai](https://platform.stepfun.ai) in your browser and log in
+2. Open DevTools (`F12`) → **Application** tab → **Cookies** → `https://platform.stepfun.ai`
+3. Find the `Oasis-Token` cookie → copy its **full value** (it's a long JWT string)
+4. Find the `Oasis-WebId` cookie → copy its **full value** (a 40-character hex string)
+
+Add to `.config/config.json`:
+
+```json
+{
+  "OASIS_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "OASIS_WEBID": "bfe7df2615d72de9fb91c7be9abb5b9105127d5d"
+}
+```
+
+> **Note:** The `OASIS_TOKEN` JWT expires (typically ~30 days). When it expires, the plan status will show an error — regenerate it from the browser. The `OASIS_WEBID` does not change between sessions.
+
+You can also set per-key sessions in the `TOKENS` array or via the **Dashboard → Manage Keys** modal. Per-key sessions override the global `OASIS_TOKEN` for that key's plan status lookup.
+
 ### Multi-Key Management
 
 The proxy supports multiple StepFun API keys. Set `TOKENS` in config:
@@ -177,7 +199,7 @@ The proxy auto-configures opencode on startup. Restart opencode after starting t
 
 Access at `http://localhost:8080`:
 
-- **Plan & Usage Stats** — Plan name (hover for dates), 5h/weekly usage % with reset timers (auto-refreshes every 30s)
+- **Plan & Usage Stats** — Plan name, 5h/weekly usage % with reset timers (auto-refreshes every 30s)
 - **Cache Stats** — Real-time cache hits and performance
 - **API Key Status** — Online/Offline indicator
 - **SS Mode** — Blur sensitive tokens for screenshots
@@ -216,34 +238,12 @@ proxy.js
 ├── Config System         — JSON + env vars + API key validation
 ├── UpstreamClient        — HTTP client for StepFun API
 │   ├── getUserInfo()     — GET /v1/models (validate key)
-│   ├── chatCompletions() — POST /v1/chat/completions
+│   ├── chatCompletions() — POST /step_plan/v1/chat/completions
 │   ├── getAccountInfo()  — GET /v1/accounts (balance info)
 │   ├── getStepPlanStatus()— POST platform QueryStepPlanRateLimit (usage)
 │   └── getPlanStatus()   — POST platform GetStepPlanStatus (plan)
 ├── Tool Schema Norm.     — $ref resolution and schema normalization
 ├── HTTP Handlers         — OpenAI + management + plan status endpoints
-├── Request Router        — Pathname-based routing
-├── Opencode Config       — Auto-configures opencode provider
-└── Server Startup        — Validation, config write, listen
-
-dashboard.html
-├── Liquid Glass Engine   — Canvas-based displacement/specular maps
-├── Plan & Usage Cards    — Plan name, 5h/weekly usage %, reset timers
-├── Model Management      — Toggle models on/off
-├── Key Manager           — Add/edit/delete API keys
-├── Bing Wallpaper        — Daily rotating background
-├── Cache Stats           — Real-time cache performance
-└── Configuration Forms   — Listen addr, upstream URL, timeout
-```
-proxy.js
-├── Config System         — JSON + env vars + API key validation
-├── UpstreamClient        — HTTP client for StepFun API
-│   ├── getUserInfo()     — GET /v1/models (validate key)
-│   ├── chatCompletions() — POST /step_plan/v1/chat/completions
-│   └── getAccountInfo()  — GET /v1/accounts (balance info)
-├── Decompression         — Brotli/gzip/deflate auto-decode
-├── Tool Schema Norm.     — $ref resolution and schema normalization
-├── HTTP Handlers         — OpenAI + management + account + wallpaper
 ├── Request Router        — Pathname-based routing
 ├── Session Tracking      — Fingerprint-based sticky sessions
 ├── Opencode Config       — Auto-configures opencode provider
@@ -251,10 +251,11 @@ proxy.js
 
 dashboard.html
 ├── Liquid Glass Engine   — Canvas-based displacement/specular maps
-├── Account Stats Cards   — Balance, Cash Balance, Voucher Balance
-├── Bing Wallpaper        — Daily rotating backgrounds
+├── Plan & Usage Cards    — Plan name, 5h/weekly usage %, reset timers
+├── Combined View         — Aggregates plan names and usage from all data slides
 ├── Model Management      — Toggle models on/off
 ├── Key Manager           — Add/edit/delete API keys
+├── Bing Wallpaper        — Daily rotating background
 ├── Cache Stats           — Real-time cache performance
 └── Configuration Forms   — Listen addr, upstream URL, timeout
 ```

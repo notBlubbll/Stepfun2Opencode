@@ -348,9 +348,37 @@
       <div id="planSlideshow" style="position:relative;min-height:120px">
         <div class="plan-slide active" id="planSlide0">
           <div class="row text-center align-items-stretch">
-            <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="planName" title="Loading...">Loading...</div><div class="stats-label">Plan</div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px" id="planExpiry">--</div></div></div></div>
-            <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="fiveHourUsage">--</div><div class="stats-label">5h Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="fiveHourBar" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="fiveHourReset">--</span></div></div></div></div>
-            <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="weeklyUsage">--</div><div class="stats-label">Weekly Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="weeklyBar" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="weeklyReset">--</span></div></div></div></div>
+            <div class="col-4">
+              <div class="stats-card card h-100 d-flex flex-column" data-glass>
+                <div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px">
+                  <div class="stats-value" id="planName" title="Loading...">Loading...</div>
+                  <div class="stats-label">Plan</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px" id="planExpiry">--</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="stats-card card h-100 d-flex flex-column" data-glass>
+                <div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px">
+                  <div class="stats-value" id="fiveHourUsage">--</div>
+                  <div class="stats-label">5h Usage</div>
+                  <div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px">
+                    <div id="fiveHourBar" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="stats-card card h-100 d-flex flex-column" data-glass>
+                <div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px">
+                  <div class="stats-value" id="weeklyUsage">--</div>
+                  <div class="stats-label">Weekly Usage</div>
+                  <div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px">
+                    <div id="weeklyBar" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1178,27 +1206,20 @@
     }
 
     function renderCombined() {
-      const datas = keyPlanDataCache.filter(Boolean);
-      if (datas.length === 0) { renderPlanInto(stepPlanData, ''); return; }
-      document.getElementById('fiveHourReset').parentElement.style.display = 'none';
-      document.getElementById('weeklyReset').parentElement.style.display = 'none';
       const planCounts = {};
-      let latestExpiry = 0;
       let totalFiveHourUsed = 0;
       let totalWeeklyUsed = 0;
       let count = 0;
-      for (const d of datas) {
-        const plan = d.plan;
-        if (plan && plan.status === 1 && plan.subscription) {
-          const sub = plan.subscription;
-          const def = plan.plan_definition || {};
-          const name = sub.name || def.en_display?.description || 'Unknown';
-          planCounts[name] = (planCounts[name] || 0) + 1;
-          const exp = parseInt(sub.expired_at || '0', 10);
-          if (exp > latestExpiry) latestExpiry = exp;
+      for (let i = 0; i < keyPlanDataCache.length; i++) {
+        const p = '_' + (i + 1);
+        const nameEl = document.getElementById('planName' + p);
+        if (nameEl) {
+          const name = nameEl.textContent.trim();
+          if (name) planCounts[name] = (planCounts[name] || 0) + 1;
         }
-        const rl = d.rate_limit;
-        if (rl) {
+        const d = keyPlanDataCache[i];
+        if (d && d.rate_limit) {
+          const rl = d.rate_limit;
           totalFiveHourUsed += Math.max(0, (1 - (rl.five_hour_usage_left_rate ?? 1)) * 100);
           totalWeeklyUsed += Math.max(0, (1 - (rl.weekly_usage_left_rate ?? 1)) * 100);
           count++;
@@ -1216,22 +1237,8 @@
         nameEl.removeAttribute('title');
       }
       if (expiryEl) {
-        if (datas.length <= 1 && latestExpiry) {
-          const msLeft = (latestExpiry * 1000) - Date.now();
-          if (msLeft > 0) {
-            const d = Math.floor(msLeft / 86400000);
-            const h = Math.floor((msLeft % 86400000) / 3600000);
-            expiryEl.textContent = d + 'd ' + h + 'h left';
-            expiryEl.style.color = '';
-          } else {
-            expiryEl.textContent = 'expired';
-            expiryEl.style.color = '';
-            expiryEl.style.display = '';
-          }
-        } else {
-          expiryEl.textContent = '';
-          expiryEl.style.display = 'none';
-        }
+        expiryEl.textContent = '';
+        expiryEl.style.display = 'none';
       }
       if (count > 0) {
         const avgFive = totalFiveHourUsed / count;
@@ -1251,8 +1258,8 @@
       const p = '_' + idx;
       return `<div class="row text-center align-items-stretch">
         <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="planName${p}" title="Loading...">Loading...</div><div class="stats-label">Plan</div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px" id="planExpiry${p}">--</div></div></div></div>
-        <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="fiveHourUsage${p}">--</div><div class="stats-label">5h Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="fiveHourBar${p}" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="fiveHourReset${p}">--</span></div></div></div></div>
-        <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="weeklyUsage${p}">--</div><div class="stats-label">Weekly Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="weeklyBar${p}" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="weeklyReset${p}">--</span></div></div></div></div>
+        <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="fiveHourUsage${p}">--</div><div class="stats-label">5h Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="fiveHourBar${p}" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div></div></div></div>
+        <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="weeklyUsage${p}">--</div><div class="stats-label">Weekly Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="weeklyBar${p}" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div></div></div></div>
       </div>`;
     }
 
@@ -1267,20 +1274,16 @@
         legend.textContent = 'Combined';
         renderCombined();
       } else {
-        document.getElementById('fiveHourReset').parentElement.style.display = '';
-        document.getElementById('weeklyReset').parentElement.style.display = '';
+        const p = '_' + idx;
+        const fhEl = document.getElementById('fiveHourReset' + p);
+        if (fhEl) fhEl.parentElement.style.display = '';
+        const wkEl = document.getElementById('weeklyReset' + p);
+        if (wkEl) wkEl.parentElement.style.display = '';
         if (planSlides[idx]) legend.textContent = planSlides[idx].keyName;
       }
     }
 
     async function fetchStepPlanStatus() {
-      const now = Math.floor(Date.now() / 1000);
-
-      const fakeData = {
-        plan: { status: 1, subscription: { name: 'Demo', expired_at: String(now + 28 * 86400 + 14 * 3600), auto_renew: true } },
-        rate_limit: { five_hour_usage_left_rate: 0.763, weekly_usage_left_rate: 0.488, five_hour_usage_reset_time: String(now + 4 * 3600 + 12 * 60), weekly_usage_reset_time: String(now + 3 * 86400 + 8 * 3600) }
-      };
-
       let realData = null;
       try {
         const r = await fetch('/api/step-plan-status');
@@ -1295,9 +1298,8 @@
       planSlides = [
         { keyName: 'Combined', data: null },
         { keyName: 'Real', data: realData },
-        { keyName: 'Fake', data: fakeData },
       ];
-      keyPlanDataCache = [realData, fakeData].filter(Boolean);
+      keyPlanDataCache = [realData];
 
       const combinedDot = document.createElement('span');
       combinedDot.className = 'plan-dot active';
@@ -1305,17 +1307,17 @@
       combinedDot.onclick = () => goToSlide(0);
       dots.appendChild(combinedDot);
 
-      for (let idx = 1; idx <= 2; idx++) {
+      if (realData) {
         const slide = document.createElement('div');
         slide.className = 'plan-slide';
-        slide.innerHTML = buildSlideHTML(idx);
+        slide.innerHTML = buildSlideHTML(1);
         slideshow.appendChild(slide);
         const dot = document.createElement('span');
         dot.className = 'plan-dot';
         dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);cursor:pointer;transition:background 0.3s';
-        dot.onclick = () => goToSlide(idx);
+        dot.onclick = () => goToSlide(1);
         dots.appendChild(dot);
-        renderPlanInto(planSlides[idx].data, '_' + idx);
+        renderPlanInto(realData, '_1');
       }
 
       renderCombined();

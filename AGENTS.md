@@ -113,8 +113,11 @@ Routes by pathname:
 
 - `getStepPlanStatus(cookies, webid)` — Calls `QueryStepPlanRateLimit` on `platform.stepfun.ai`
 - `getPlanStatus(cookies, webid)` — Calls `GetStepPlanStatus` on `platform.stepfun.ai`
-- Requires browser cookies (Oasis-Token + session-token) from platform.stepfun.ai
+- Requires browser cookies (`Oasis-Token` + `Oasis-WebId`) from platform.stepfun.ai
+- How to get them: login to platform.stepfun.ai → DevTools → Application → Cookies → copy `Oasis-Token` (JWT) and `Oasis-WebId` (40-char hex)
+- `OASIS_TOKEN` expires ~30 days; `OASIS_WEBID` is persistent
 - 60s in-memory cache for combined response
+- Per-key sessions (`tokens[i].session`) override the global `OASIS_TOKEN` for that key
 - Exposed via `GET /api/step-plan-status`
 - Returns: `{ rate_limit: { five_hour/left_rate, weekly/left_rate, *_reset_time }, plan: { name, status, activated_at, expired_at, auto_renew, ... } }`
 
@@ -131,7 +134,8 @@ Routes by pathname:
 
 - **Liquid Glass Engine** — Canvas-generated displacement maps with refraction profiles
 - **SVG Filter Pipeline** — `feGaussianBlur` → `feDisplacementMap` → `feColorMatrix` → `feComposite` → `feBlend`
-- **Plan & Usage Stats** — 3 stat cards: Plan (name + expiry), 5h Usage %, Weekly Usage %
+- **Plan & Usage Stats** — 2 stat cards: Plan (name only), 5h Usage %, Weekly Usage %
+- **Combined View** — Aggregates plan names and usage from all data slides via DOM reads
 - **Key Manager Modal** — Inline add/edit/delete for multiple API keys
 - **Model Tags** — Toggle models on/off with checkbox UI
 - **SS Mode** — `token-blurred` CSS class (blur on hover)

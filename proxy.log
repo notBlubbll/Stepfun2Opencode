@@ -1,0 +1,19 @@
+╔═══════════════════════════════════════════════════════════════╗
+║  StepFun2Opencode - Starting...                              ║
+╚═══════════════════════════════════════════════════════════════╝
+API key valid
+[Models] Fetched 6 models from StepFun
+[Opencode] Config updated: C:\Windows\system32\config\systemprofile\.opencode\opencode.json
+[Opencode] Config updated: C:\Windows\system32\config\systemprofile\.config\opencode\opencode.json
+[Opencode] Config updated: C:\Windows\System32\config\systemprofile\.opencode\opencode.json
+
+StepFun2Opencode on http://127.0.0.1:8080
+  Upstream: https://api.stepfun.ai
+  Step Plan: https://api.stepfun.ai/step_plan/v1
+  Models URL: https://api.stepfun.ai/step_plan/v1/models
+  API Key: configured (37YY7XqtSw...)
+  API Key Valid: true
+  Models: 6 (dynamic)
+  Response Cache: enabled (100 entries, 60s TTL)
+  Proxy API Keys: none (open access)
+

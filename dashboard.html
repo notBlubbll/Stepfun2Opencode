@@ -19,7 +19,7 @@
       margin: 0;
       min-height: 100vh;
       padding: 0;
-      background-color: #0d1117;
+      background: black;
     }
     .dashboard-container {
       position: relative;
@@ -48,15 +48,7 @@
       inset: 0;
       z-index: 1;
       border-radius: inherit;
-      background-color: rgba(255, 255, 255, 0.04);
-      pointer-events: none;
-    }
-    .glass-panel::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      border-radius: inherit;
+      background-color: rgba(255,255,255,0.04);
       pointer-events: none;
     }
     .card-content {
@@ -64,11 +56,11 @@
       z-index: 3;
       border-radius: inherit;
       overflow: hidden;
-      background: rgba(0, 0, 0, 0.22);
+      background: rgba(0,0,0,0.4);
     }
     .card-header {
-      background: rgba(0, 0, 0, 0.2) !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0,0,0,0.2) !important;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -127,18 +119,58 @@
       border-radius: 12px;
       padding: 0;
       text-align: center;
-      position: relative;
-      z-index: 10;
       backdrop-filter: blur(13px);
       -webkit-backdrop-filter: blur(13px);
     }
+    .plan-fieldset {
+      position: relative;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 8px 8px;
+      margin-bottom: 20px;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+    .plan-fieldset-legend {
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      background: #0d1117;
+      padding: 0 8px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      z-index: 5;
+    }
+    #planSlideshow { position: relative; z-index: 5; }
+    .plan-slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+    }
+    .plan-slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      position: relative;
+      visibility: visible;
+    }
+    .plan-dot {
+      cursor: pointer;
+      padding: 4px;
+    }
+    .plan-dot.active {
+      background: rgba(255,255,255,0.8) !important;
+    }
     .stats-value {
-      font-size: 28px;
+      font-size: 32px;
       font-weight: 700;
       color: white;
     }
     .stats-label {
-      font-size: 12px;
+      font-size: 13px;
       color: rgba(255, 255, 255, 0.8);
       text-transform: uppercase;
       letter-spacing: 1px;
@@ -310,11 +342,19 @@
       </div>
     </div>
 
-    <div class="row text-center align-items-stretch mb-3">
-      <div class="col-6 col-md-3"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:10px"><div class="stats-value" id="balanceDisplay" style="font-size:1rem">Loading...</div><div class="stats-label">Balance</div></div></div></div>
-      <div class="col-6 col-md-3"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:10px"><div class="stats-value" id="cashBalanceDisplay" style="font-size:1rem">Loading...</div><div class="stats-label">Cash Balance</div></div></div></div>
-      <div class="col-6 col-md-3"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:10px"><div class="stats-value" id="voucherBalanceDisplay" style="font-size:1rem">Loading...</div><div class="stats-label">Voucher Balance</div></div></div></div>
-      <div class="col-6 col-md-3"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:10px"><div class="stats-value" id="cacheHits" style="font-size:1rem">0</div><div class="stats-label">Cache Hits</div></div></div></div>
+    <div class="plan-fieldset" data-glass id="planFieldset">
+      <div class="glass-panel"></div>
+      <span class="plan-fieldset-legend" id="planLegend">Combined</span>
+      <div id="planSlideshow" style="position:relative;min-height:120px">
+        <div class="plan-slide active" id="planSlide0">
+          <div class="row text-center align-items-stretch">
+            <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="planName" title="Loading...">Loading...</div><div class="stats-label">Plan</div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px" id="planExpiry">--</div></div></div></div>
+            <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="fiveHourUsage">--</div><div class="stats-label">5h Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="fiveHourBar" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="fiveHourReset">--</span></div></div></div></div>
+            <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="weeklyUsage">--</div><div class="stats-label">Weekly Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="weeklyBar" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="weeklyReset">--</span></div></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div id="planDots" style="display:flex;justify-content:center;gap:6px;margin-top:8px;position:relative;z-index:5"></div>
     </div>
 
     <div class="row">
@@ -456,6 +496,12 @@
             <label class="form-label">Add New Key</label>
             <input type="text" class="form-control form-control-sm mb-2" id="newKeyName" placeholder="Key name (e.g. Key 2)">
             <input type="text" class="form-control form-control-sm mb-2" id="newKeyToken" placeholder="API token">
+            <label class="form-label" style="font-size:10px">Platform Session</label>
+            <div class="input-group input-group-sm mb-2">
+              <input type="text" class="form-control form-control-sm" id="newKeySession" placeholder="Platform session (optional)">
+              <button class="btn btn-sm btn-outline-action" onclick="loadSessionStatus(-1, 'add')" title="Load plan status from session"><i class="bi bi-cloud-download"></i></button>
+            </div>
+            <div id="addSessionStatus" style="display:none" class="mb-2"></div>
             <button class="btn btn-success btn-sm w-100" onclick="addKey()"><i class="bi bi-plus-circle me-1"></i>Add Key</button>
           </div>
         </div>
@@ -631,6 +677,7 @@
     let proxyData = null;
     let config = {};
     let models = [];
+    let modelMeta = {};
     let blurTokensEnabled = false;
 
     function showToast(message, type = 'info') {
@@ -679,7 +726,7 @@
         }
         const modelsResponse = await fetch('/api/models');
         const modelsData = await modelsResponse.json();
-        if (modelsData && modelsData.models) { models = modelsData.allModels || modelsData.models; renderModels(modelsData.models); }
+        if (modelsData && modelsData.models) { models = modelsData.allModels || modelsData.models; modelMeta = modelsData.meta || {}; renderModels(modelsData.models); }
         renderTokenPools();
         updateStats();
       } catch (error) {
@@ -724,13 +771,22 @@
               <label class="form-label" style="font-size:10px">Token</label>
               <input type="text" class="form-control form-control-sm" id="editKeyToken" value="${escapeHtml(k.token || '')}">
             </div>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:10px">Session</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control form-control-sm" id="editKeySession" value="${escapeHtml(k.session || '')}" placeholder="Platform session (optional)">
+                <button class="btn btn-sm btn-outline-action" onclick="loadSessionStatus(${i}, 'edit')" title="Load plan status from session"><i class="bi bi-cloud-download"></i></button>
+              </div>
+            </div>
+            <div id="editSessionStatus" style="display:none" class="mb-2"></div>
             <div class="d-flex gap-2">
               <button class="btn btn-sm btn-success" onclick="saveEditKey(${i})"><i class="bi bi-check me-1"></i>Save</button>
               <button class="btn btn-sm btn-secondary" onclick="cancelEditKey()"><i class="bi bi-x me-1"></i>Cancel</button>
             </div>
           </div>`;
         }
-        const maskedToken = k.token ? k.token.substring(0, 10) + '...' + k.token.substring(k.token.length - 4) : '';
+        const maskedToken = k.token ? k.token.substring(0, 4) + '...' + k.token.substring(k.token.length - 4) : '';
+        const maskedSession = k.session ? k.session.substring(0, 4) + '...' + k.session.substring(k.session.length - 4) : '';
         const isDeleting = deleteIndex === i;
         return `<div class="pool-card">
           <div class="pool-header">
@@ -741,7 +797,8 @@
             </div>
           </div>
           <div style="font-size:0.8rem;color:rgba(255,255,255,0.7)">
-            <div>Token: <span class="${blurClass}">${maskedToken || '(empty)'}</span></div>
+            <div>Token: <span class="${blurClass}" title="${escapeHtml(k.token || '')}">${maskedToken || '(empty)'}</span></div>
+            <div>Session: <span class="${blurClass}" title="${escapeHtml(k.session || '')}">${maskedSession || '(none)'}</span></div>
           </div>
           ${isDeleting ? `<div class="mt-2 d-flex gap-2 align-items-center" style="font-size:0.85rem;color:#dc3545"><i class="bi bi-exclamation-triangle"></i> Delete this key?</div>
             <div class="d-flex gap-2 mt-1">
@@ -755,17 +812,19 @@
     async function addKey() {
       const name = document.getElementById('newKeyName').value.trim() || ('Key ' + (document.querySelectorAll('#keysList .pool-card').length + 1));
       const token = document.getElementById('newKeyToken').value.trim();
+      const session = document.getElementById('newKeySession').value.trim();
       if (!token) { showToast('Token is required', 'warning'); return; }
       try {
         const r = await fetch('/api/keys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'add', name, token })
+          body: JSON.stringify({ action: 'add', name, token, session })
         });
         const data = await r.json();
         if (data.success) {
           document.getElementById('newKeyName').value = '';
           document.getElementById('newKeyToken').value = '';
+          document.getElementById('newKeySession').value = '';
           renderKeysList(data.keys);
           showToast('Key added', 'success');
           loadConfiguration();
@@ -778,7 +837,13 @@
     function startEditKey(index) {
       editingIndex = index;
       deleteIndex = -1;
-      fetch('/api/keys').then(d => d.json()).then(data => renderKeysList(data.keys));
+      fetch('/api/keys').then(d => d.json()).then(data => {
+        renderKeysList(data.keys);
+        const key = data.keys?.[index];
+        if (key?.session) {
+          setTimeout(() => loadSessionStatus(index, 'edit'), 100);
+        }
+      });
     }
 
     function cancelEditKey() {
@@ -786,14 +851,75 @@
       fetch('/api/keys').then(d => d.json()).then(data => renderKeysList(data.keys));
     }
 
+    async function loadSessionStatus(index, mode) {
+      const inputId = mode === 'edit' ? 'editKeySession' : 'newKeySession';
+      const statusId = mode === 'edit' ? 'editSessionStatus' : 'addSessionStatus';
+      const session = document.getElementById(inputId)?.value?.trim();
+      if (!session) { showToast('Enter a session cookie first', 'warning'); return; }
+      const statusEl = document.getElementById(statusId);
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '<div class="text-muted" style="font-size:11px"><i class="bi bi-hourglass-split me-1"></i>Loading...</div>';
+      try {
+        let data;
+        if (mode === 'edit' && index >= 0) {
+          const r = await fetch('/api/step-plan-status/' + index);
+          data = await r.json();
+        } else {
+          const r = await fetch('/api/step-plan-status/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session })
+          });
+          data = await r.json();
+        }
+        if (data.error) throw new Error(data.error.message || 'Failed');
+        statusEl.innerHTML = formatSessionStatus(data);
+      } catch (e) {
+        statusEl.innerHTML = `<div style="font-size:11px;color:#dc3545"><i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function formatSessionStatus(data) {
+      const parts = [];
+      const plan = data.plan;
+      if (plan && plan.status === 1 && plan.subscription) {
+        const sub = plan.subscription;
+        const def = plan.plan_definition || {};
+        const name = sub.name || def.en_display?.description || 'Unknown';
+        const expiredAt = parseInt(sub.expired_at || '0', 10);
+        let expiry = '';
+        if (expiredAt) {
+          const msLeft = (expiredAt * 1000) - Date.now();
+          if (msLeft > 0) {
+            const d = Math.floor(msLeft / 86400000);
+            const h = Math.floor((msLeft % 86400000) / 3600000);
+            expiry = ` (${d}d ${h}h left)`;
+          } else {
+            expiry = ' (expired)';
+          }
+        }
+        parts.push(`<span style="color:#32CD32;font-weight:600">${escapeHtml(name)}</span>${expiry}`);
+      } else {
+        parts.push('<span style="color:rgba(255,255,255,0.5)">No plan</span>');
+      }
+      const rl = data.rate_limit;
+      if (rl) {
+        const fiveUsed = Math.max(0, (1 - (rl.five_hour_usage_left_rate ?? 1)) * 100);
+        const weekUsed = Math.max(0, (1 - (rl.weekly_usage_left_rate ?? 1)) * 100);
+        parts.push(`<span style="font-size:10px;color:rgba(255,255,255,0.7)">5h: ${fiveUsed.toFixed(1)}% | Week: ${weekUsed.toFixed(1)}%</span>`);
+      }
+      return `<div style="font-size:11px;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:6px;border:1px solid rgba(255,255,255,0.1)">${parts.join('<br>')}</div>`;
+    }
+
     async function saveEditKey(index) {
       const name = document.getElementById('editKeyName').value.trim();
       const token = document.getElementById('editKeyToken').value.trim();
+      const session = document.getElementById('editKeySession') ? document.getElementById('editKeySession').value.trim() : '';
       try {
         const r = await fetch('/api/keys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'update', index, name, token })
+          body: JSON.stringify({ action: 'update', index, name, token, session })
         });
         const data = await r.json();
         if (data.success) {
@@ -853,7 +979,10 @@
         const status = pool.status || 'none';
         const statusClass = status === 'active' ? 'status-online' : 'status-offline';
         const statusText = status.charAt(0).toUpperCase() + status.slice(1);
-        return `<div class="pool-card"><div class="pool-header"><div class="pool-name">${pool.name}</div><div class="pool-status ${statusClass}">${statusText}</div></div><div style="font-size:0.8rem;color:rgba(255,255,255,0.7)"><div>Token: <span class="${blurClass}">${pool.token || '(empty)'}</span></div></div></div>`;
+        const maskedPoolToken = pool.token ? pool.token.substring(0, 4) + '...' + pool.token.substring(pool.token.length - 4) : '(empty)';
+        const maskedPoolSession = pool.session ? pool.session.substring(0, 4) + '...' + pool.session.substring(pool.session.length - 4) : '';
+        const sessInfo = pool.has_session ? `<div>Session: <span class="${blurClass}" title="${escapeHtml(pool.session || '')}">${maskedPoolSession}</span></div>` : '';
+        return `<div class="pool-card"><div class="pool-header"><div class="pool-name">${pool.name}</div><div class="pool-status ${statusClass}">${statusText}</div></div><div style="font-size:0.8rem;color:rgba(255,255,255,0.7)"><div>Token: <span class="${blurClass}" title="${escapeHtml(pool.token || '')}">${maskedPoolToken}</span></div>${sessInfo}</div></div>`;
       }).join('');
     }
 
@@ -876,7 +1005,21 @@
         const items = groups[family];
         return `<div class="model-family-group"><div class="model-family-header">${escapeHtml(family)} <span class="badge bg-secondary">${items.length}</span></div><div style="display:flex;flex-wrap:wrap;gap:3px">${items.map(({ model, idx }) => {
           const enabled = enabledSet.has(model);
-          return `<div class="model-tag${enabled ? ' enabled' : ''}" onclick="toggleModel(${idx})" id="model-${idx}"><input type="checkbox" class="form-check-input"${enabled ? ' checked' : ''}><div><div class="model-tag-name">${escapeHtml(model)}</div><div class="model-tag-id" title="${escapeHtml(model)}">${escapeHtml(model)}</div></div></div>`;
+          const meta = modelMeta[model] || {};
+          const displayName = meta.name || model;
+          const caps = [];
+          if (meta.reasoning) caps.push('reasoning');
+          if (meta.tool_call) caps.push('tools');
+          if (meta.attachment) caps.push('vision');
+          if (meta.modalities) {
+            const ins = (meta.modalities.input || []).filter(m => m !== 'text');
+            const outs = (meta.modalities.output || []).filter(m => m !== 'text');
+            if (ins.length) caps.push(ins.join('+') + ' in');
+            if (outs.length) caps.push(outs.join('+') + ' out');
+          }
+          if (meta.limit && meta.limit.context) caps.push((meta.limit.context / 1000) + 'K ctx');
+          const capStr = caps.length ? '<div class="model-tag-id">' + escapeHtml(caps.join(' · ')) + '</div>' : '';
+          return `<div class="model-tag${enabled ? ' enabled' : ''}" onclick="toggleModel(${idx})" id="model-${idx}"><input type="checkbox" class="form-check-input"${enabled ? ' checked' : ''}><div><div class="model-tag-name">${escapeHtml(displayName)}</div><div class="model-tag-id" title="${escapeHtml(model)}">${escapeHtml(model)}</div>${capStr}</div></div>`;
         }).join('')}</div></div>`;
       }).join('');
     }
@@ -888,7 +1031,8 @@
       if (isEnabled) { tag.classList.remove('enabled'); checkbox.checked = false; }
       else { tag.classList.add('enabled'); checkbox.checked = true; }
       const enabledModels = models.filter((_, i) => document.getElementById(`model-${i}`).classList.contains('enabled'));
-      showToast(`${models[idx]} ${isEnabled ? 'disabled' : 'enabled'}`, 'info');
+      const displayName = (modelMeta[models[idx]] || {}).name || models[idx];
+      showToast(`${displayName} ${isEnabled ? 'disabled' : 'enabled'}`, 'info');
       try {
         const resp = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabledModels }) });
         const data = await resp.json();
@@ -965,26 +1109,217 @@
       if (proxyData.started_at) {
         document.getElementById('startedAt').textContent = new Date(proxyData.started_at).toLocaleString();
       }
-      if (proxyData.cache) {
-        document.getElementById('cacheHits').textContent = proxyData.cache.hits || 0;
+    }
+
+    let stepPlanData = null;
+    let planSlides = [];
+    let currentSlide = 0;
+    let keyPlanDataCache = [];
+
+    function renderPlanInto(data, prefix) {
+      if (!data) return;
+      const p = prefix || '';
+      const plan = data.plan;
+      const nameEl = document.getElementById('planName' + p);
+      const expiryEl = document.getElementById('planExpiry' + p);
+      if (plan && plan.status === 1 && plan.subscription) {
+        const sub = plan.subscription;
+        const def = plan.plan_definition || {};
+        const name = sub.name || def.en_display?.description || 'Unknown';
+        const expiredAt = parseInt(sub.expired_at || '0', 10);
+        if (nameEl) { nameEl.textContent = name; nameEl.style.color = ''; nameEl.setAttribute('title', `${name} Plan`); }
+        if (expiredAt && expiryEl) {
+          const msLeft = (expiredAt * 1000) - Date.now();
+          if (msLeft > 0) {
+            const d = Math.floor(msLeft / 86400000);
+            const h = Math.floor((msLeft % 86400000) / 3600000);
+            expiryEl.textContent = d + 'd ' + h + 'h left';
+          } else {
+            expiryEl.textContent = 'expired';
+            expiryEl.style.color = '#dc3545';
+          }
+        }
+      } else {
+        if (nameEl) { nameEl.textContent = 'No Plan'; nameEl.style.color = ''; nameEl.setAttribute('title', 'No active subscription'); }
+        if (expiryEl) expiryEl.textContent = '';
       }
-      if (proxyData.account) {
-        const a = proxyData.account;
-        document.getElementById('balanceDisplay').textContent = '$' + (a.balance ?? 0).toFixed(2);
-        document.getElementById('cashBalanceDisplay').textContent = '$' + (a.total_cash_balance ?? 0).toFixed(2);
-        document.getElementById('voucherBalanceDisplay').textContent = '$' + (a.total_voucher_balance ?? 0).toFixed(2);
+      const rl = data.rate_limit;
+      if (!rl) return;
+      const fiveHourLeft = rl.five_hour_usage_left_rate ?? 1;
+      const weeklyLeft = rl.weekly_usage_left_rate ?? 1;
+      const fiveHourReset = rl.five_hour_usage_reset_time;
+      const weeklyReset = rl.weekly_usage_reset_time;
+      const fiveHourUsed = Math.max(0, (1 - fiveHourLeft) * 100);
+      const weeklyUsed = Math.max(0, (1 - weeklyLeft) * 100);
+      const fiveEl = document.getElementById('fiveHourUsage' + p);
+      const weekEl = document.getElementById('weeklyUsage' + p);
+      if (fiveEl) { fiveEl.textContent = fiveHourUsed.toFixed(1) + '%'; fiveEl.style.color = ''; }
+      if (weekEl) { weekEl.textContent = weeklyUsed.toFixed(1) + '%'; weekEl.style.color = ''; }
+      const fiveBar = document.getElementById('fiveHourBar' + p);
+      const weekBar = document.getElementById('weeklyBar' + p);
+      if (fiveBar) {
+        fiveBar.style.width = fiveHourUsed + '%';
+        fiveBar.style.background = 'rgba(255,255,255,0.6)';
+      }
+      if (weekBar) {
+        weekBar.style.width = weeklyUsed + '%';
+        weekBar.style.background = 'rgba(255,255,255,0.6)';
+      }
+      const fiveResetEl = document.getElementById('fiveHourReset' + p);
+      const weekResetEl = document.getElementById('weeklyReset' + p);
+      if (fiveHourReset && fiveResetEl) {
+        const msLeft = (parseInt(fiveHourReset) * 1000) - Date.now();
+        fiveResetEl.textContent = msLeft > 0 ? Math.floor(msLeft / 3600000) + 'h ' + Math.floor((msLeft % 3600000) / 60000) + 'm' : 'resetting...';
+      }
+      if (weeklyReset && weekResetEl) {
+        const msLeft = (parseInt(weeklyReset) * 1000) - Date.now();
+        weekResetEl.textContent = msLeft > 0 ? Math.floor(msLeft / 86400000) + 'd ' + Math.floor((msLeft % 86400000) / 3600000) + 'h' : 'resetting...';
       }
     }
 
-    async function fetchAccountInfo() {
+    function renderCombined() {
+      const datas = keyPlanDataCache.filter(Boolean);
+      if (datas.length === 0) { renderPlanInto(stepPlanData, ''); return; }
+      document.getElementById('fiveHourReset').parentElement.style.display = 'none';
+      document.getElementById('weeklyReset').parentElement.style.display = 'none';
+      const planCounts = {};
+      let latestExpiry = 0;
+      let totalFiveHourUsed = 0;
+      let totalWeeklyUsed = 0;
+      let count = 0;
+      for (const d of datas) {
+        const plan = d.plan;
+        if (plan && plan.status === 1 && plan.subscription) {
+          const sub = plan.subscription;
+          const def = plan.plan_definition || {};
+          const name = sub.name || def.en_display?.description || 'Unknown';
+          planCounts[name] = (planCounts[name] || 0) + 1;
+          const exp = parseInt(sub.expired_at || '0', 10);
+          if (exp > latestExpiry) latestExpiry = exp;
+        }
+        const rl = d.rate_limit;
+        if (rl) {
+          totalFiveHourUsed += Math.max(0, (1 - (rl.five_hour_usage_left_rate ?? 1)) * 100);
+          totalWeeklyUsed += Math.max(0, (1 - (rl.weekly_usage_left_rate ?? 1)) * 100);
+          count++;
+        }
+      }
+      const nameEl = document.getElementById('planName');
+      const expiryEl = document.getElementById('planExpiry');
+      const planNames = Object.entries(planCounts).sort((a, b) => b[1] - a[1]);
+      if (planNames.length > 0) {
+        const displayName = planNames.map(([n, c]) => (c > 1 ? c + 'x ' : '') + n).join(', ');
+        nameEl.textContent = displayName;
+        nameEl.setAttribute('title', displayName);
+      } else {
+        nameEl.textContent = 'No Plan';
+        nameEl.removeAttribute('title');
+      }
+      if (expiryEl) {
+        if (datas.length <= 1 && latestExpiry) {
+          const msLeft = (latestExpiry * 1000) - Date.now();
+          if (msLeft > 0) {
+            const d = Math.floor(msLeft / 86400000);
+            const h = Math.floor((msLeft % 86400000) / 3600000);
+            expiryEl.textContent = d + 'd ' + h + 'h left';
+            expiryEl.style.color = '';
+          } else {
+            expiryEl.textContent = 'expired';
+            expiryEl.style.color = '';
+            expiryEl.style.display = '';
+          }
+        } else {
+          expiryEl.textContent = '';
+          expiryEl.style.display = 'none';
+        }
+      }
+      if (count > 0) {
+        const avgFive = totalFiveHourUsed / count;
+        const avgWeekly = totalWeeklyUsed / count;
+        document.getElementById('fiveHourUsage').textContent = avgFive.toFixed(1) + '%';
+        document.getElementById('weeklyUsage').textContent = avgWeekly.toFixed(1) + '%';
+        const fiveBar = document.getElementById('fiveHourBar');
+        const weekBar = document.getElementById('weeklyBar');
+        fiveBar.style.width = avgFive + '%';
+        fiveBar.style.background = 'rgba(255,255,255,0.6)';
+        weekBar.style.width = avgWeekly + '%';
+        weekBar.style.background = 'rgba(255,255,255,0.6)';
+      }
+    }
+
+    function buildSlideHTML(idx) {
+      const p = '_' + idx;
+      return `<div class="row text-center align-items-stretch">
+        <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="planName${p}" title="Loading...">Loading...</div><div class="stats-label">Plan</div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px" id="planExpiry${p}">--</div></div></div></div>
+        <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="fiveHourUsage${p}">--</div><div class="stats-label">5h Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="fiveHourBar${p}" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="fiveHourReset${p}">--</span></div></div></div></div>
+        <div class="col-4"><div class="stats-card card h-100 d-flex flex-column" data-glass><div class="card-content flex-grow-1 justify-content-center align-items-center d-flex flex-column" style="padding:8px"><div class="stats-value" id="weeklyUsage${p}">--</div><div class="stats-label">Weekly Usage</div><div style="width:80%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px"><div id="weeklyBar${p}" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.6);transition:width 0.5s;width:0%"></div></div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">resets in <span id="weeklyReset${p}">--</span></div></div></div></div>
+      </div>`;
+    }
+
+    function goToSlide(idx) {
+      const slides = document.querySelectorAll('.plan-slide');
+      const dots = document.querySelectorAll('.plan-dot');
+      slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+      dots.forEach((d, i) => { if (i > 0) d.classList.toggle('active', i === idx); });
+      currentSlide = idx;
+      const legend = document.getElementById('planLegend');
+      if (idx === 0) {
+        legend.textContent = 'Combined';
+        renderCombined();
+      } else {
+        document.getElementById('fiveHourReset').parentElement.style.display = '';
+        document.getElementById('weeklyReset').parentElement.style.display = '';
+        if (planSlides[idx]) legend.textContent = planSlides[idx].keyName;
+      }
+    }
+
+    async function fetchStepPlanStatus() {
+      const now = Math.floor(Date.now() / 1000);
+
+      const fakeData = {
+        plan: { status: 1, subscription: { name: 'Demo', expired_at: String(now + 28 * 86400 + 14 * 3600), auto_renew: true } },
+        rate_limit: { five_hour_usage_left_rate: 0.763, weekly_usage_left_rate: 0.488, five_hour_usage_reset_time: String(now + 4 * 3600 + 12 * 60), weekly_usage_reset_time: String(now + 3 * 86400 + 8 * 3600) }
+      };
+
+      let realData = null;
       try {
-        const r = await fetch('/api/account');
-        if (!r.ok) return;
-        const data = await r.json();
-        document.getElementById('balanceDisplay').textContent = '$' + (data.balance ?? 0).toFixed(2);
-        document.getElementById('cashBalanceDisplay').textContent = '$' + (data.total_cash_balance ?? 0).toFixed(2);
-        document.getElementById('voucherBalanceDisplay').textContent = '$' + (data.total_voucher_balance ?? 0).toFixed(2);
+        const r = await fetch('/api/step-plan-status');
+        if (r.ok) { realData = await r.json(); stepPlanData = realData; }
       } catch (e) {}
+
+      const slideshow = document.getElementById('planSlideshow');
+      const dots = document.getElementById('planDots');
+      slideshow.querySelectorAll('.plan-slide').forEach((s, i) => { if (i > 0) s.remove(); });
+      dots.innerHTML = '';
+
+      planSlides = [
+        { keyName: 'Combined', data: null },
+        { keyName: 'Real', data: realData },
+        { keyName: 'Fake', data: fakeData },
+      ];
+      keyPlanDataCache = [realData, fakeData].filter(Boolean);
+
+      const combinedDot = document.createElement('span');
+      combinedDot.className = 'plan-dot active';
+      combinedDot.style.cssText = 'width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.8);cursor:pointer;transition:background 0.3s';
+      combinedDot.onclick = () => goToSlide(0);
+      dots.appendChild(combinedDot);
+
+      for (let idx = 1; idx <= 2; idx++) {
+        const slide = document.createElement('div');
+        slide.className = 'plan-slide';
+        slide.innerHTML = buildSlideHTML(idx);
+        slideshow.appendChild(slide);
+        const dot = document.createElement('span');
+        dot.className = 'plan-dot';
+        dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);cursor:pointer;transition:background 0.3s';
+        dot.onclick = () => goToSlide(idx);
+        dots.appendChild(dot);
+        renderPlanInto(planSlides[idx].data, '_' + idx);
+      }
+
+      renderCombined();
+      currentSlide = 0;
     }
 
     function toggleSection(name) {
@@ -1005,14 +1340,14 @@
     Promise.all([
       loadConfiguration().then(() => fetchBingWallpaper()),
       checkHealth(),
-      fetchAccountInfo(),
+      fetchStepPlanStatus(),
     ]).then(() => {
       initLiquidGlass();
       setTimeout(() => window.dispatchEvent(new Event('resize')), 1000);
       setTimeout(() => window.dispatchEvent(new Event('resize')), 3000);
     });
     setInterval(() => checkHealth(true), 15000);
-    setInterval(() => fetchAccountInfo(), 60000);
+    setInterval(() => fetchStepPlanStatus(), 30000);
     let resizeTimer;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);

@@ -7,6 +7,7 @@ const os = require('os');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const STEP_API_BASE = 'https://api.stepfun.ai';
 const STEP_PLAN_BASE = 'https://api.stepfun.ai/step_plan';
@@ -112,6 +113,10 @@ function loadConfig() {
   if (process.env.CACHE_MAX_SIZE) rawConfig.CACHE_MAX_SIZE = parseInt(process.env.CACHE_MAX_SIZE);
   if (process.env.CACHE_ENABLED) rawConfig.CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
 
+  if (process.env.OASIS_TOKEN) rawConfig.OASIS_TOKEN = process.env.OASIS_TOKEN;
+  if (process.env.PLATFORM_COOKIES) rawConfig.OASIS_TOKEN = rawConfig.OASIS_TOKEN || process.env.PLATFORM_COOKIES;
+  if (process.env.OASIS_WEBID) rawConfig.OASIS_WEBID = process.env.OASIS_WEBID;
+
   const requestTimeout = parseDuration(rawConfig.REQUEST_TIMEOUT);
   if (!rawConfig.LISTEN_ADDR) throw new Error('LISTEN_ADDR cannot be empty');
   if (!rawConfig.UPSTREAM_BASE_URL) throw new Error('UPSTREAM_BASE_URL cannot be empty');
@@ -122,8 +127,9 @@ function loadConfig() {
   const rawTokens = rawConfig.TOKENS;
   let tokens = Array.isArray(rawTokens) && rawTokens.length > 0 ? rawTokens : [];
   if (tokens.length === 0) {
-    tokens.push({ name: rawConfig.API_KEY ? 'Key 1' : 'Key 1', token: rawConfig.API_KEY || '' });
+    tokens.push({ name: rawConfig.API_KEY ? 'Key 1' : 'Key 1', token: rawConfig.API_KEY || '', session: '' });
   }
+  tokens = tokens.map(t => ({ name: t.name || 'Unnamed', token: t.token || '', session: t.session || '' }));
 
   const rawModels = rawConfig.ENABLED_MODELS;
   const enabledModels = Array.isArray(rawModels) && rawModels.length > 0 ? rawModels : [...STEP_MODELS];
@@ -140,6 +146,8 @@ function loadConfig() {
     cacheMaxSize: Math.max(0, rawConfig.CACHE_MAX_SIZE || 100),
     cacheEnabled: rawConfig.CACHE_ENABLED !== false,
     enableWallpaper: rawConfig.ENABLE_WALLPAPER !== false,
+    oasisToken: rawConfig.OASIS_TOKEN || '',
+    oasisWebid: rawConfig.OASIS_WEBID || 'bfe7df2615d72de9fb91c7be9abb5b9105127d5d',
   };
 }
 
@@ -171,7 +179,9 @@ function saveConfig(cfg) {
     ENABLE_WALLPAPER: cfg.enableWallpaper !== false,
     CACHE_TTL: `${(cfg.cacheTtl || 60000) / 1000}s`,
     CACHE_MAX_SIZE: cfg.cacheMaxSize || 100,
-    CACHE_ENABLED: cfg.cacheEnabled !== false
+    CACHE_ENABLED: cfg.cacheEnabled !== false,
+    OASIS_TOKEN: cfg.oasisToken || '',
+    OASIS_WEBID: cfg.oasisWebid || '',
   }, null, 2));
 }
 
@@ -288,6 +298,52 @@ class UpstreamClient {
       const resp = await fetch(requestURL, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${this.apiKey}` },
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return await resp.json();
+    } catch (e) { clearTimeout(timer); throw e; }
+  }
+
+  async getStepPlanStatus(platformCookies, oasisWebid) {
+    const requestURL = 'https://platform.stepfun.ai/api/step.openapi.devcenter.Dashboard/QueryStepPlanRateLimit';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const resp = await fetch(requestURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'connect-protocol-version': '1',
+          'oasis-appid': '20700',
+          'oasis-platform': 'web',
+          'oasis-webid': oasisWebid || '',
+          'Cookie': platformCookies ? 'Oasis-Token=' + platformCookies : '',        },
+        body: '{}',
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return await resp.json();
+    } catch (e) { clearTimeout(timer); throw e; }
+  }
+
+  async getPlanStatus(platformCookies, oasisWebid) {
+    const requestURL = 'https://platform.stepfun.ai/api/step.openapi.devcenter.Dashboard/GetStepPlanStatus';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const resp = await fetch(requestURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'connect-protocol-version': '1',
+          'oasis-appid': '20700',
+          'oasis-platform': 'web',
+          'oasis-webid': oasisWebid || '',
+          'Cookie': platformCookies ? 'Oasis-Token=' + platformCookies : '',        },
+        body: '{}',
         signal: controller.signal
       });
       clearTimeout(timer);
@@ -515,6 +571,54 @@ function readBodyText(body) {
   return String(body);
 }
 
+async function readBodyWithDecompress(body, contentEncoding) {
+  const raw = await readBodyBody(body);
+  if (!contentEncoding || contentEncoding === 'identity') return raw;
+  if (contentEncoding === 'br') {
+    try { return zlib.brotliDecompressSync(raw); } catch { return raw; }
+  }
+  if (contentEncoding === 'gzip') {
+    try { return zlib.gunzipSync(raw); } catch { return raw; }
+  }
+  if (contentEncoding === 'deflate') {
+    try { return zlib.inflateSync(raw); } catch { return raw; }
+  }
+  return raw;
+}
+
+function readBodyBody(body) {
+  if (isNodeStream(body)) {
+    return new Promise((resolve, reject) => {
+      const chunks = [];
+      body.on('data', c => chunks.push(c));
+      body.on('end', () => resolve(Buffer.concat(chunks)));
+      body.on('error', reject);
+    });
+  }
+  if (body && typeof body.getReader === 'function') {
+    const reader = body.getReader();
+    const chunks = [];
+    return new Promise((resolve, reject) => {
+      function pump() {
+        reader.read().then(({ done, value }) => {
+          if (done) { resolve(Buffer.concat(chunks)); return; }
+          chunks.push(Buffer.from(value));
+          pump();
+        }).catch(reject);
+      }
+      pump();
+    });
+  }
+  if (body && typeof body[Symbol.asyncIterator] === 'function') {
+    return (async () => {
+      const chunks = [];
+      for await (const chunk of body) chunks.push(Buffer.from(chunk));
+      return Buffer.concat(chunks);
+    })();
+  }
+  return Buffer.from(String(body));
+}
+
 function pipeBodyToResponse(body, res) {
   let closed = false;
   const onClose = () => { closed = true; };
@@ -613,6 +717,54 @@ async function handleAccountInfo(req, res) {
   }
 }
 
+let stepPlanCache = { data: null, time: 0 };
+const STEP_PLAN_CACHE_TTL = 60000;
+const stepPlanKeyCache = new Map();
+const STEP_PLAN_KEY_CACHE_TTL = 60000;
+
+async function getStepPlanStatus() {
+  const now = Date.now();
+  if (stepPlanCache.data && (now - stepPlanCache.time) < STEP_PLAN_CACHE_TTL) {
+    return stepPlanCache.data;
+  }
+  const cookies = config.oasisToken || '';
+  const webid = config.oasisWebid || '';
+  let rateLimit = null;
+  let planStatus = null;
+  try { rateLimit = await upstream.getStepPlanStatus(cookies, webid); } catch (e) { console.warn('[StepPlan] Rate limit fetch failed:', e.message); }
+  try { planStatus = await upstream.getPlanStatus(cookies, webid); } catch (e) { console.warn('[StepPlan] Plan status fetch failed:', e.message); }
+  if (!rateLimit && !planStatus) throw new Error('Both platform API calls failed');
+  const data = { rate_limit: rateLimit, plan: planStatus };
+  stepPlanCache = { data, time: now };
+  return data;
+}
+
+async function getStepPlanStatusForKey(sessionCookie) {
+  const now = Date.now();
+  const cacheKey = sessionCookie || '__default__';
+  const cached = stepPlanKeyCache.get(cacheKey);
+  if (cached && (now - cached.time) < STEP_PLAN_KEY_CACHE_TTL) return cached.data;
+  const cookies = sessionCookie || config.oasisToken || '';
+  const webid = config.oasisWebid || '';
+  let rateLimit = null;
+  let planStatus = null;
+  try { rateLimit = await upstream.getStepPlanStatus(cookies, webid); } catch (e) { /* ignore */ }
+  try { planStatus = await upstream.getPlanStatus(cookies, webid); } catch (e) { /* ignore */ }
+  const data = { rate_limit: rateLimit, plan: planStatus };
+  stepPlanKeyCache.set(cacheKey, { data, time: now });
+  return data;
+}
+
+async function handleStepPlanStatus(req, res) {
+  if (req.method !== 'GET') { writeOpenAIError(res, 405, 'method not allowed', 'invalid_request_error', ''); return; }
+  try {
+    const data = await getStepPlanStatus();
+    writeJSON(res, 200, data);
+  } catch (e) {
+    writeJSON(res, 502, { error: { message: `Failed to fetch step plan status: ${e.message}`, type: 'upstream_error' } });
+  }
+}
+
 async function handleHealthz(req, res) {
   if (req.method !== 'GET') { writeOpenAIError(res, 405, 'method not allowed', 'invalid_request_error', ''); return; }
   let modelsData = null;
@@ -621,11 +773,16 @@ async function handleHealthz(req, res) {
   catch (e) { /* ignore */ }
   try { accountData = await getAccountInfo(); }
   catch (e) { /* ignore */ }
+  const globalSession = config.oasisToken || '';
   const tokenState = (config.tokens || []).map(t => {
+    const effectiveSession = t.session || globalSession;
     const maskedToken = t.token ? t.token.substring(0, 10) + '...' + t.token.substring(t.token.length - 4) : '';
+    const maskedSession = effectiveSession ? effectiveSession.substring(0, 8) + '...' : '';
     return {
       name: t.name || 'Unnamed Key',
       token: maskedToken,
+      session: maskedSession,
+      has_session: !!effectiveSession,
       status: t.token ? (modelsData ? 'active' : 'unknown') : 'none',
     };
   });
@@ -734,7 +891,7 @@ async function proxyChatRequest(res, payload, requestedModel) {
     if (resp.status >= 200 && resp.status < 300) {
       try {
         if (cacheEnabled && ck && !resp.headers['content-type']?.includes('text/event-stream')) {
-          const bodyText = await readBodyText(resp.body);
+          const bodyText = (await readBodyWithDecompress(resp.body, resp.headers['content-encoding'])).toString();
           responseCache.set(ck, bodyText);
           const skipHeaders = new Set(['content-length', 'transfer-encoding', 'connection', 'keep-alive', 'content-encoding']);
           for (const [key, values] of Object.entries(resp.headers)) {
@@ -757,10 +914,10 @@ async function proxyChatRequest(res, payload, requestedModel) {
           }
           try {
             if (resp.headers['content-type']?.includes('text/event-stream')) {
-              const bodyText = await readBodyText(resp.body);
+              const bodyText = (await readBodyWithDecompress(resp.body, resp.headers['content-encoding'])).toString();
               res.end(bodyText);
             } else {
-              const buffer = await readBodyText(resp.body);
+              const buffer = (await readBodyWithDecompress(resp.body, resp.headers['content-encoding'])).toString();
               res.end(buffer);
             }
           } catch (e) {
@@ -772,7 +929,7 @@ async function proxyChatRequest(res, payload, requestedModel) {
       return { retry: false };
     }
 
-    const errorBodyStr = await readBodyText(resp.body);
+    const errorBodyStr = (await readBodyWithDecompress(resp.body, resp.headers['content-encoding'])).toString();
     if (isModelUnavailableError(errorBodyStr)) {
       if (isLast) {
         console.log(`${ts} [Session#${sessNum}>${name}]-[${requestedModel}]-error:${resp.status}`);
@@ -857,6 +1014,9 @@ async function handleRequest(req, res) {
         if (newConfig.enableWallpaper !== undefined) config.enableWallpaper = newConfig.enableWallpaper;
         if (Array.isArray(newConfig.enabledModels)) config.enabledModels = newConfig.enabledModels;
         if (Array.isArray(newConfig.tokens)) config.tokens = newConfig.tokens;
+        if (newConfig.oasisToken !== undefined) config.oasisToken = newConfig.oasisToken;
+        if (newConfig.platformCookies !== undefined) config.oasisToken = newConfig.platformCookies;
+        if (newConfig.oasisWebid !== undefined) config.oasisWebid = newConfig.oasisWebid;
         saveConfig(config);
         setupOpencodeConfig();
         writeJSON(res, 200, { success: true });
@@ -874,7 +1034,10 @@ async function handleRequest(req, res) {
 
   if (pathname === '/api/models' && req.method === 'GET') {
     const models = config.enabledModels || (dynamicModels && dynamicModels.length > 0 ? dynamicModels : STEP_MODELS);
-    writeJSON(res, 200, { models, allModels: dynamicModels && dynamicModels.length > 0 ? dynamicModels : STEP_MODELS });
+    const allModels = dynamicModels && dynamicModels.length > 0 ? dynamicModels : STEP_MODELS;
+    const meta = {};
+    for (const m of allModels) { meta[m] = getModelMeta(m); }
+    writeJSON(res, 200, { models, allModels, meta });
     return;
   }
 
@@ -924,12 +1087,19 @@ async function handleRequest(req, res) {
 
   if (pathname === '/api/keys') {
     if (req.method === 'GET') {
+      const globalSession = config.oasisToken || '';
       const safe = (config.tokens || []).map(t => ({
         name: t.name,
         token_masked: t.token ? t.token.substring(0, 10) + '...' + t.token.substring(t.token.length - 4) : '',
         has_token: !!t.token,
+        session_masked: t.session ? t.session.substring(0, 8) + '...' : (globalSession ? globalSession.substring(0, 8) + '...' : ''),
+        has_session: !!(t.session || globalSession),
       }));
-      writeJSON(res, 200, { keys: config.tokens || [], safe });
+      const withSession = (config.tokens || []).map(t => ({
+        ...t,
+        session: t.session || globalSession,
+      }));
+      writeJSON(res, 200, { keys: withSession, safe });
       return;
     }
     if (req.method === 'POST') {
@@ -938,7 +1108,7 @@ async function handleRequest(req, res) {
         const data = JSON.parse(body);
         if (data.action === 'add') {
           if (!config.tokens) config.tokens = [];
-          config.tokens.push({ name: data.name || `Key ${config.tokens.length + 1}`, token: data.token || '' });
+          config.tokens.push({ name: data.name || `Key ${config.tokens.length + 1}`, token: data.token || '', session: data.session || '' });
           if (!config.apiKey && data.token) config.apiKey = data.token;
           saveConfig(config);
           setupOpencodeConfig();
@@ -947,6 +1117,7 @@ async function handleRequest(req, res) {
           if (typeof data.index !== 'number' || !config.tokens || !config.tokens[data.index]) { writeJSON(res, 404, { error: 'Key not found' }); return; }
           if (data.name !== undefined) config.tokens[data.index].name = data.name;
           if (data.token !== undefined) config.tokens[data.index].token = data.token;
+          if (data.session !== undefined) config.tokens[data.index].session = data.session;
           if (data.index === 0 && config.tokens[0].token) config.apiKey = config.tokens[0].token;
           saveConfig(config);
           setupOpencodeConfig();
@@ -954,7 +1125,7 @@ async function handleRequest(req, res) {
         } else if (data.action === 'delete') {
           if (typeof data.index !== 'number' || !config.tokens || !config.tokens[data.index]) { writeJSON(res, 404, { error: 'Key not found' }); return; }
           config.tokens.splice(data.index, 1);
-          if (config.tokens.length === 0) config.tokens.push({ name: 'Key 1', token: '' });
+          if (config.tokens.length === 0) config.tokens.push({ name: 'Key 1', token: '', session: '' });
           if (data.index === 0) config.apiKey = config.tokens[0].token || '';
           saveConfig(config);
           setupOpencodeConfig();
@@ -973,6 +1144,36 @@ async function handleRequest(req, res) {
   }
 
   if (pathname === '/api/account') { await handleAccountInfo(req, res); return; }
+  if (pathname === '/api/step-plan-status') { await handleStepPlanStatus(req, res); return; }
+
+  const keyPlanMatch = pathname.match(/^\/api\/step-plan-status\/(\d+)$/);
+  if (keyPlanMatch) {
+    if (req.method !== 'GET') { writeOpenAIError(res, 405, 'method not allowed', 'invalid_request_error', ''); return; }
+    const idx = parseInt(keyPlanMatch[1], 10);
+    const tokens = config.tokens || [];
+    if (idx < 0 || idx >= tokens.length) { writeJSON(res, 404, { error: 'Key not found' }); return; }
+    try {
+      const session = tokens[idx].session || config.oasisToken || '';
+      const data = await getStepPlanStatusForKey(session);
+      writeJSON(res, 200, data);
+    } catch (e) {
+      writeJSON(res, 502, { error: { message: `Failed to fetch plan for key ${idx}: ${e.message}`, type: 'upstream_error' } });
+    }
+    return;
+  }
+
+  if (pathname === '/api/step-plan-status/validate' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      const session = body.session || '';
+      if (!session) { writeJSON(res, 400, { error: 'session is required' }); return; }
+      const data = await getStepPlanStatusForKey(session);
+      writeJSON(res, 200, data);
+    } catch (e) {
+      writeJSON(res, 502, { error: { message: `Failed to validate session: ${e.message}`, type: 'upstream_error' } });
+    }
+    return;
+  }
 
   if (pathname === '/healthz') { await handleHealthz(req, res); return; }
   if (pathname === '/v1/models') { await handleModels(req, res); return; }
@@ -980,11 +1181,99 @@ async function handleRequest(req, res) {
 
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not Found');
+  } catch (e) {
+    console.error('[Handler Error]', e.message);
+    try { if (!res.headersSent) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'internal error', type: 'server_error' } })); } } catch {}
+  }
 }
 
 // --- Opencode Config ---
+const STEP_MODEL_META = {
+  'step-3.5-flash': {
+    name: 'Step 3.5 Flash',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    modalities: { input: ['text'], output: ['text'] },
+    limit: { context: 256000, output: 16384 },
+    cost: { input: 0.1, output: 0.3, cache_read: 0.02 },
+    variants: {
+      low: { options: { reasoningEffort: 'low' } },
+      high: { options: { reasoningEffort: 'high' } },
+    },
+  },
+  'step-3.5-flash-2603': {
+    name: 'Step 3.5 Flash 2603',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    modalities: { input: ['text'], output: ['text'] },
+    limit: { context: 256000, output: 16384 },
+    cost: { input: 0.1, output: 0.3, cache_read: 0.02 },
+    variants: {
+      low: { options: { reasoningEffort: 'low' } },
+      high: { options: { reasoningEffort: 'high' } },
+    },
+  },
+  'step-3.7-flash': {
+    name: 'Step 3.7 Flash',
+    attachment: true,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    limit: { context: 256000, output: 16384 },
+    cost: { input: 0.2, output: 1.15, cache_read: 0.04 },
+    variants: {
+      low: { options: { reasoningEffort: 'low' } },
+      medium: { options: { reasoningEffort: 'medium' } },
+      high: { options: { reasoningEffort: 'high' } },
+    },
+  },
+  'step-tts-2': {
+    name: 'Step TTS 2',
+    attachment: false,
+    reasoning: false,
+    temperature: false,
+    tool_call: false,
+    modalities: { input: ['text'], output: ['audio'] },
+  },
+  'stepaudio-2.5-tts': {
+    name: 'StepAudio 2.5 TTS',
+    attachment: false,
+    reasoning: false,
+    temperature: false,
+    tool_call: false,
+    modalities: { input: ['text'], output: ['audio'] },
+  },
+  'stepaudio-2.5-asr': {
+    name: 'StepAudio 2.5 ASR',
+    attachment: false,
+    reasoning: false,
+    temperature: false,
+    tool_call: false,
+    modalities: { input: ['audio'], output: ['text'] },
+  },
+  'step-image-edit-2': {
+    name: 'Step Image Edit 2',
+    attachment: true,
+    reasoning: false,
+    temperature: false,
+    tool_call: false,
+    modalities: { input: ['image', 'text'], output: ['image'] },
+  },
+};
+
+function getModelMeta(modelId) {
+  if (STEP_MODEL_META[modelId]) return STEP_MODEL_META[modelId];
+  return { name: modelId };
+}
+
 function setupOpencodeConfig() {
   const enabled = config.enabledModels || STEP_MODELS;
+  const allModels = dynamicModels && dynamicModels.length > 0 ? dynamicModels : STEP_MODELS;
   const port = parseInt(config.listenAddr.split(':').pop()) || 8080;
 
   const configPaths = [
@@ -1000,9 +1289,13 @@ function setupOpencodeConfig() {
     try {
       const models = {};
       const disabled = [];
-      for (const m of STEP_MODELS) {
-        if (enabled.includes(m)) models[m] = { name: m };
-        else disabled.push(m);
+      for (const m of allModels) {
+        const meta = getModelMeta(m);
+        if (enabled.includes(m)) {
+          models[m] = meta;
+        } else {
+          disabled.push(m);
+        }
       }
       const providerEntry = {
         npm: '@ai-sdk/openai-compatible',
@@ -1054,11 +1347,9 @@ async function startServer() {
 
   await fetchRemoteModels();
 
-  setupOpencodeConfig();
-
   const port = parseInt(config.listenAddr.split(':').pop()) || 8080;
-  const server = http.createServer(handleRequest);
-  server.listen(port, '127.0.0.1', () => {
+
+  function onListen() {
     console.log(`\nStepFun2Opencode on http://127.0.0.1:${port}`);
     console.log(`  Upstream: ${config.upstreamBaseURL}`);
     console.log(`  Step Plan: ${STEP_PLAN_BASE}/v1`);
@@ -1069,7 +1360,27 @@ async function startServer() {
     console.log(`  Response Cache: ${config.cacheEnabled ? 'enabled (' + config.cacheMaxSize + ' entries, ' + (config.cacheTtl / 1000) + 's TTL)' : 'disabled'}`);
     console.log(`  Proxy API Keys: ${config.apiKeys.length > 0 ? config.apiKeys.length + ' (auth enabled)' : 'none (open access)'}`);
     console.log('');
-  });
+  }
+
+  const MAX_LISTEN_RETRIES = 10;
+  let listenRetries = 0;
+
+  function tryListen() {
+    const server = http.createServer(handleRequest);
+    server.on('error', (e) => {
+      if (e.code === 'EADDRINUSE' && listenRetries < MAX_LISTEN_RETRIES) {
+        listenRetries++;
+        console.log(`[Retry] Port ${port} in use, retrying in 2s... (${listenRetries}/${MAX_LISTEN_RETRIES})`);
+        setTimeout(tryListen, 2000);
+      } else {
+        console.error(`[FATAL] ${e.message}`);
+        process.exit(1);
+      }
+    });
+    server.listen(port, '127.0.0.1', onListen);
+  }
+
+  tryListen();
 }
 
 startServer().catch(e => { console.error('Failed to start server:', e.message); process.exit(1); });

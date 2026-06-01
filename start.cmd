@@ -16,10 +16,7 @@ set "BUN_PATH=C:\WINDOWS\system32\config\systemprofile\.bun\bin"
 set "PATH=%BUN_PATH%;%PATH%"
 
 echo [1/3] Cleaning up...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr "0.0.0.0:8080"') do (
-    taskkill /PID %%a /F >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr "127.0.0.1:8080"') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080" ^| findstr "LISTENING"') do (
     taskkill /PID %%a /F >nul 2>&1
 )
 timeout /t 1 /nobreak >nul
@@ -59,12 +56,9 @@ if "%RUNTIME%"=="bun" (
 )
 
 set EXIT_CODE=%ERRORLEVEL%
-if %EXIT_CODE% equ 0 goto :done
-if %EXIT_CODE% equ -1073741819 goto :done
+if %EXIT_CODE% equ 0 exit /b 0
+if %EXIT_CODE% equ -1073741819 exit /b 0
 echo.
 echo [ERROR] Proxy exited with code %EXIT_CODE%
-
-:done
-echo.
-echo Proxy stopped.
-pause
+timeout /t 5 /nobreak >nul
+exit /b %EXIT_CODE%

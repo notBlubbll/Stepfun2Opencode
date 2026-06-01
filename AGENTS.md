@@ -8,7 +8,7 @@ STEP-PROXY/
 ├── dashboard.html        # Liquid glass dashboard with stats UI
 ├── .config/
 │   └── config.json       # Runtime configuration
-├── .cache/               # Response cache directory
+├── .cache/               # Response cache + wallpaper cache
 ├── package.json          # Project metadata (MIT, no deps)
 ├── start.cmd             # Auto-detect launcher (Bun preferred, Node fallback)
 ├── start-node.cmd        # Node.js-only launcher
@@ -28,21 +28,29 @@ STEP-PROXY/
 - `loadConfig()` — Loads `.config/config.json` with env var overrides
 - `saveConfig()` — Writes config back to `.config/config.json`
 - `parseDuration()` — Parses duration strings like `15m`, `6h`, `30s`
+- `OASIS_TOKEN` — Oasis JWT token for platform.stepfun.ai API auth
+- `OASIS_WEBID` — Oasis web device ID for platform API auth
 
 ### 2. UpstreamClient
 
-- `headers(stream)` — Returns Bearer token + Content-Type/Accept headers
+- `headers(stream)` — Returns Bearer token + Content-Type/Accept/Accept-Encoding headers
 - `getUserInfo()` — `GET /v1/models` with 10s timeout to validate API key
 - `chatCompletions(body)` — `POST /step_plan/v1/chat/completions` (Step Plan endpoint, streaming-aware)
 - `getAccountInfo()` — `GET /v1/accounts` with 10s timeout to fetch balance info
 
 ### 3. Model Registry
 
-- `STEP_MODELS` — Hardcoded array of 6 model IDs (fallback)
+- `STEP_MODELS` — Hardcoded array of 7 model IDs (fallback)
 - `fetchRemoteModels()` — Fetches from `STEP_MODELS_URL` with 5-minute TTL cache
-- Models: step-3.5-flash, step-3.5-flash-2603, step-3.7-flash, stepaudio-2.5-tts, stepaudio-2.5-asr, step-image-edit-2
+- Models: step-3.5-flash, step-3.5-flash-2603, step-3.7-flash, step-tts-2, stepaudio-2.5-tts, stepaudio-2.5-asr, step-image-edit-2
 
-### 4. Utility Functions
+### 4. Decompression
+
+- `readBodyWithDecompress(body, contentEncoding)` — Reads response body and decompresses Brotli/gzip/deflate
+- `readBodyBody(body)` — Reads raw bytes from Node stream, web ReadableStream, or async iterable
+- The upstream StepFun API sends `content-encoding: br` (Brotli) responses. The proxy decompresses them before forwarding to clients and strips the `content-encoding` header.
+
+### 5. Utility Functions
 
 - `cloneMap()` / `cloneSlice()` — Deep clone objects/arrays
 - `normalizeToolSchemas(tools)` — Entry point for `$ref` resolution in tool schemas
@@ -52,7 +60,7 @@ STEP-PROXY/
 - `extractUserPrompt(payload)` — Returns last user message text for logging
 - `fingerprintPayload(payload)` — MD5 hash of first user message for session tracking
 
-### 5. HTTP Handlers
+### 6. HTTP Handlers
 
 - `authorized(req)` — Checks `x-api-key` header or `Authorization: Bearer` against `config.apiKeys`
 - `readBody(req)` — Buffers incoming request body to string
@@ -62,23 +70,26 @@ STEP-PROXY/
 - `handleModels(req, res)` — OpenAI-format model list
 - `handleChatCompletions(req, res)` — Parses body, calls `proxyChatRequest`
 - `handleAccountInfo(req, res)` — Proxies `GET /v1/accounts` from StepFun with 60s cache
+- `handleBg(req, res)` — Bing wallpaper proxy with daily cache
 - `proxyChatRequest(res, payload, model)` — Core proxy: clone payload, normalize tools, forward to upstream
 
-### 6. Request Router
+### 7. Request Router
 
 Routes by pathname:
 - `/` or `/dashboard` → Serve `dashboard.html`
 - `/api/config` (GET/POST) → Config read/write
 - `/api/validate` (GET) → Validate API key
 - `/api/models` (GET) → Model list
+- `/api/bg` (GET) → Bing wallpaper image (cached daily)
 - `/api/keys` (GET/POST) → Multi-key CRUD (add/update/delete with `{name, token}`)
 - `/api/account` (GET) → StepFun account info (balance, cash, voucher)
+- `/api/step-plan-status` (GET) → Platform plan info + usage rates (60s cache)
 - `/api/cache` (GET/DELETE) → Cache stats/clear
 - `/healthz` → Health check (includes account info)
 - `/v1/models` → OpenAI models
 - `/v1/chat/completions` → OpenAI chat
 
-### 7. Session Tracking & Key Rotation
+### 8. Session Tracking & Key Rotation
 
 - `currentTokenIndex` — Module-level round-robin index
 - `globalSessionCounter` — Monotonically incrementing session ID for each new conversation
@@ -90,7 +101,7 @@ Routes by pathname:
   3. If new fingerprint → rotates to next key round-robin, stores mapping, stamps message with `[KeyName|sessN]`
 - Console logs use `HH:MM:SS [Session#N>KeyName]-[model]-"actual prompt"` format
 
-### 8. Account Info
+### 9. Account Info
 
 - `getAccountInfo()` — Fetches `GET /v1/accounts` from StepFun API with 60s in-memory cache
 - `accountCache` — `{ data, time }` object for caching account responses
@@ -98,7 +109,16 @@ Routes by pathname:
 - Exposed via `GET /api/account` endpoint
 - Also included in `/healthz` response under `account` key
 
-### 9. Opencode Config
+### 10. Step Plan Platform Status
+
+- `getStepPlanStatus(cookies, webid)` — Calls `QueryStepPlanRateLimit` on `platform.stepfun.ai`
+- `getPlanStatus(cookies, webid)` — Calls `GetStepPlanStatus` on `platform.stepfun.ai`
+- Requires browser cookies (Oasis-Token + session-token) from platform.stepfun.ai
+- 60s in-memory cache for combined response
+- Exposed via `GET /api/step-plan-status`
+- Returns: `{ rate_limit: { five_hour/left_rate, weekly/left_rate, *_reset_time }, plan: { name, status, activated_at, expired_at, auto_renew, ... } }`
+
+### 11. Opencode Config
 
 - `setupOpencodeConfig()` — Writes provider config to multiple paths:
   1. `~/.opencode/opencode.json` (Win32 priority)
@@ -107,15 +127,16 @@ Routes by pathname:
 - Creates `openconfig.b4stepfun.json` backup before first edit
 - Provider key: `stepfun`, using `@ai-sdk/openai-compatible`
 
-### 10. Dashboard (dashboard.html)
+### 12. Dashboard (dashboard.html)
 
 - **Liquid Glass Engine** — Canvas-generated displacement maps with refraction profiles
 - **SVG Filter Pipeline** — `feGaussianBlur` → `feDisplacementMap` → `feColorMatrix` → `feComposite` → `feBlend`
-- **Account Stats** — 4 stat cards: Balance, Cash Balance, Voucher Balance, Cache Hits
+- **Plan & Usage Stats** — 3 stat cards: Plan (name + expiry), 5h Usage %, Weekly Usage %
 - **Key Manager Modal** — Inline add/edit/delete for multiple API keys
 - **Model Tags** — Toggle models on/off with checkbox UI
 - **SS Mode** — `token-blurred` CSS class (blur on hover)
-- **Auto-refresh** — Health check every 15s, account info every 60s
+- **Bing Wallpaper** — Daily rotating background with toggle
+- **Auto-refresh** — Health check every 15s, step plan status every 30s
 - **Collapsible Sections** — Models, API Key, Quick Actions, Environment, Proxy Configuration
 
 ## Request Lifecycle
@@ -136,9 +157,14 @@ Detect session signal (fingerprint first user msg)
     ↓
 Clone payload, normalize tool schemas
     ↓
-Forward to upstream api.stepfun.ai
+Forward to upstream api.stepfun.ai/step_plan
     ↓
-Success → pipe/buffer response (stream or JSON), log done
+Receive response → decompress Brotli if needed
+    ↓
+  ├─ Streaming → pipe decompressed chunks to client
+  └─ Non-streaming → buffer, cache, send JSON
+    ↓
+Success → log done
 Error   → parse upstream error, return formatted response
 ```
 
@@ -177,6 +203,7 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/v1/models
 curl http://localhost:8080/api/models
 curl http://localhost:8080/api/account
+curl http://localhost:8080/api/step-plan-status
 
 # Test chat completion
 curl -X POST http://localhost:8080/v1/chat/completions \

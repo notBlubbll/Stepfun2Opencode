@@ -2,6 +2,13 @@
 
 OpenAI-compatible proxy server for [StepFun AI](https://platform.stepfun.ai), providing access to StepFun LLM models through a unified API. Zero external dependencies — uses only Node.js built-in modules.
 
+<img width="1035" height="593" alt="image" src="https://github.com/user-attachments/assets/604991d2-73ee-45e7-8121-91985f6c74cd" />
+
+<img width="600" height="150" alt="image" src="https://github.com/user-attachments/assets/2cf0fabb-b2ad-4987-80e8-f79c1f9334a8" />
+
+<img width="1410" height="947" alt="image" src="https://github.com/user-attachments/assets/b1229ffc-1cb3-4b9a-b94a-eb076c8752cb" />
+
+
 ## Features
 
 - **OpenAI-Compatible API** — Standard `/v1/chat/completions` and `/v1/models` endpoints

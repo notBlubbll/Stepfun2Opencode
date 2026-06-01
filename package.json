@@ -1,0 +1,21 @@
+{
+  "name": "stepfun2opencode",
+  "version": "1.0.0",
+  "description": "OpenAI-compatible StepFun LLM proxy",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js",
+    "dev": "node --watch proxy.js",
+    "start:bun": "bun run proxy.js"
+  },
+  "keywords": [
+    "stepfun2opencode",
+    "stepfun",
+    "proxy",
+    "openai",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {}
+}
